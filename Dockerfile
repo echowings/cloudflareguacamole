@@ -22,7 +22,7 @@ RUN chmod +x /root/start.sh
 
 # Update package sources and install dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommands \
+    apt-get install -y  \
             apt-transport-https \
             ca-certificates \  
             curl \
