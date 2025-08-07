@@ -18,11 +18,9 @@ ENV HOME=/root \
 WORKDIR /root
 COPY setup.sql start.sh /root/
 COPY guacamole.properties /etc/guacamole/
-RUN mkdir -p /etc/guacamole/lib /var/run/mysqld /usr/share/tomcat9/logs /etc/guacamole/extensions && \
-    chmod +x /root/start.sh && \
-    chown -R mysql:root /var/run/mysqld
+RUN chmod +x /root/start.sh
 
-# Install dependencies
+# Install dependencies and setup directories
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         wget \
@@ -33,12 +31,14 @@ RUN apt-get update && \
         iproute2 \
         mariadb-server \
         libmariadb-java && \
+    mkdir -p /etc/guacamole/lib /var/run/mysqld /usr/share/tomcat9/logs /etc/guacamole/extensions && \
+    chown -R mysql:root /var/run/mysqld && \
     # Get latest Cloudflared version
     CLOUDFLARED_VERSION=$(curl -s https://api.github.com/repos/cloudflare/cloudflared/releases/latest | grep 'tag_name' | cut -d\" -f4) && \
     wget -q https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64.deb -O cloudflared.deb && \
     dpkg -i cloudflared.deb && \
     # Get latest Guacamole version
-    GUACAMOLE_VERSION=$(curl -s https://downloads.apache.org/guacamole/ | grep -oP '<a href="\d+\.\d+\.\d+/'  | grep -oP '\d+\.\d+\.\d+' | sort -V | tail -n 1) && \
+    GUACAMOLE_VERSION=$(curl -s https://downloads.apache.org/guacamole/ | grep -oP '<a href="\d+\.\d+\.\d+/' | grep -oP '\d+\.\d+\.\d+' | sort -V | tail -n 1) && \
     wget -q https://downloads.apache.org/guacamole/${GUACAMOLE_VERSION}/binary/guacamole-${GUACAMOLE_VERSION}.war -O /var/lib/tomcat9/webapps/guacamole.war && \
     wget -q https://downloads.apache.org/guacamole/${GUACAMOLE_VERSION}/binary/guacamole-auth-jdbc-${GUACAMOLE_VERSION}.tar.gz -O guacamole-auth-jdbc.tar.gz && \
     tar xvfz guacamole-auth-jdbc.tar.gz && \
