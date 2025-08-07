@@ -1,68 +1,61 @@
-FROM debian:latest
+FROM debian:bookworm-slim
+
 LABEL maintainer="matt@matthewrogers.org"
 
-ENV HOME /root
-ENV LC_ALL C.UTF-8
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US.UTF-8
-ENV GOPATH /root/go
-ENV DEBIAN_FRONTEND noninteractive
+# Combine environment variables
+ENV HOME=/root \
+    LC_ALL=C.UTF-8 \
+    LANG=en_US.UTF-8 \
+    LANGUAGE=en_US.UTF-8 \
+    GOPATH=/root/go \
+    DEBIAN_FRONTEND=noninteractive \
+    CLOUDFLARETEAM=yourcloudflareteamname \
+    TZ=Asia/Chongqing \
+    CATALINA_HOME=/usr/share/tomcat9 \
+    CATALINA_BASE=/var/lib/tomcat9
 
-### Change this to Match your Cloudflare!!!!!! 
-ENV CLOUDFLARETEAM yourcloudflareteamname
-ENV TZ America/New_York
-###
+# Create directories and copy files
+WORKDIR /root
+COPY setup.sql start.sh /root/
+COPY guacamole.properties /etc/guacamole/
+RUN mkdir -p /etc/guacamole/lib /var/run/mysqld /usr/share/tomcat9/logs /etc/guacamole/extensions && \
+    chmod +x /root/start.sh && \
+    chown -R mysql:root /var/run/mysqld
 
-#ADD local insideContainer
-ADD setup.sql /root/setup.sql
-ADD start.sh /root/start.sh
-RUN chmod +x /root/start.sh
-RUN mkdir /etc/guacamole
-RUN mkdir /etc/guacamole/lib
-ADD guacamole.properties /etc/guacamole/guacamole.properties
+# Install dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        wget \
+        curl \
+        ca-certificates \
+        guacd \
+        tomcat9 \
+        iproute2 \
+        mariadb-server \
+        libmariadb-java && \
+    # Get latest Cloudflared version
+    CLOUDFLARED_VERSION=$(curl -s https://api.github.com/repos/cloudflare/cloudflared/releases/latest | grep 'tag_name' | cut -d\" -f4) && \
+    wget -q https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64.deb -O cloudflared.deb && \
+    dpkg -i cloudflared.deb && \
+    # Get latest Guacamole version
+    GUACAMOLE_VERSION=$(curl -s https://downloads.apache.org/guacamole/ | grep -oP '<a href="\d+\.\d+\.\d+/'  | grep -oP '\d+\.\d+\.\d+' | sort -V | tail -n 1) && \
+    wget -q https://downloads.apache.org/guacamole/${GUACAMOLE_VERSION}/binary/guacamole-${GUACAMOLE_VERSION}.war -O /var/lib/tomcat9/webapps/guacamole.war && \
+    wget -q https://downloads.apache.org/guacamole/${GUACAMOLE_VERSION}/binary/guacamole-auth-jdbc-${GUACAMOLE_VERSION}.tar.gz -O guacamole-auth-jdbc.tar.gz && \
+    tar xvfz guacamole-auth-jdbc.tar.gz && \
+    cp guacamole-auth-jdbc-${GUACAMOLE_VERSION}/mysql/guacamole-auth-jdbc-mysql-${GUACAMOLE_VERSION}.jar /etc/guacamole/extensions && \
+    # Setup Guacamole links
+    ln -s /etc/guacamole/ /var/lib/tomcat9/.guacamole && \
+    ln -s /usr/share/java/mariadb-java-client.jar /etc/guacamole/lib/ && \
+    # Cleanup
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* cloudflared.deb guacamole-auth-jdbc.tar.gz guacamole-auth-jdbc-${GUACAMOLE_VERSION}
 
-#Instlal CloudflareD
-RUN apt update 
-RUN apt install wget -y
-RUN wget https://github.com/cloudflare/cloudflared/releases/download/2021.11.0/cloudflared-linux-amd64.deb -O /root/cloudflared.deb
-RUN dpkg -i /root/cloudflared.deb
-RUN rm /root/cloudflared.deb
-
-#Start The Tunnel and Login
-RUN cloudflared tunnel login
-#Makes this cert /root/.cloudflared/cert.pem
-
-#Creates the tunnel and adds the DNS
-RUN cloudflared tunnel create guacamole
-
-#Setup Guacamole
-RUN apt install guacd -y
-RUN apt install tomcat9 -y
-RUN apt install iproute2 -y
-RUN apt install mariadb-server -y
-RUN apt install libmariadb-java -y
-RUN mkdir /var/run/mysqld
-RUN chown -R mysql:root /var/run/mysqld
-
-#Setup the Guacamole Client in Tomcat
-RUN wget "https://apache.org/dyn/closer.lua/guacamole/1.3.0/binary/guacamole-1.3.0.war?action=download" -O /var/lib/tomcat9/webapps/guacamole.war
-RUN ln -s /etc/guacamole/ /var/lib/tomcat9/.guacamole
-RUN mkdir /usr/share/tomcat9/logs
-RUN ln -s /usr/share/java/mariadb-java-client.jar /etc/guacamole/lib/
-RUN export CATALINA_HOME=/usr/share/tomcat9
-RUN export CATALINA_BASE=/var/lib/tomcat9
-RUN mkdir /etc/guacamole/extensions
-
-#Get the DB Driver for Guacamole
-RUN wget https://apache.org/dyn/closer.lua/guacamole/1.3.0/binary/guacamole-auth-jdbc-1.3.0.tar.gz?action=download -O /root/guacamole-auth-jdbc-1.3.0.tar.gz
-RUN tar xvfz /root/guacamole-auth-jdbc-1.3.0.tar.gz -C /root/
-RUN cp /root/guacamole-auth-jdbc-1.3.0/mysql/guacamole-auth-jdbc-mysql-1.3.0.jar /etc/guacamole/extensions
-ADD config.yml /root/.cloudflared/config.yml
-
-#Lets add the DNS at the End, this seems to cause a problem if we do it within a milisecond as it will attach to an existing tunnel
-RUN cloudflared tunnel route dns guacamole guacamole
+# Copy Cloudflared config and setup tunnel
+COPY config.yml /root/.cloudflared/
+RUN cloudflared tunnel login && \
+    cloudflared tunnel create guacamole && \
+    cloudflared tunnel route dns guacamole guacamole
 
 EXPOSE 8080/tcp
 
-# Run this thing
 CMD ["/root/start.sh"]
