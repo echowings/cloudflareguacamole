@@ -29,8 +29,8 @@ RUN echo "deb http://mirrors.ustc.edu.cn/debian/ bookworm main contrib non-free 
     echo "deb-src http://mirrors.ustc.edu.cn/debian/ bookworm-backports main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
     echo "deb http://mirrors.ustc.edu.cn/debian-security/ bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
     echo "deb-src http://mirrors.ustc.edu.cn/debian-security/ bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
+    apt-get update && 
+RUN apt-get install -y --no-install-recommends \
         apt-transport-https \
         ca-certificates \
         wget \
