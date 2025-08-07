@@ -29,13 +29,15 @@ RUN echo "deb http://mirrors.ustc.edu.cn/debian/ bookworm main contrib non-free 
     echo "deb-src http://mirrors.ustc.edu.cn/debian/ bookworm-backports main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
     echo "deb http://mirrors.ustc.edu.cn/debian-security/ bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
     echo "deb-src http://mirrors.ustc.edu.cn/debian-security/ bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
-    apt-get update 
+    apt-get update && \
+    apt-get install -y --no-install-recommands \
+            apt-transport-https \
+            ca-certificates \  
+            curl \
+            wget  && \
+    curl -fsSL https://mirrors.ustc.edu.cn/repogen/conf/debian-https-4-bookworm -o  /etc/apt/sources.list && \
+    apt-get update  
 RUN apt-get install -y --no-install-recommends \
-        apt-transport-https \
-        ca-certificates \
-        wget \
-        curl \
-        ca-certificates \
         guacd \
         tomcat11 \
         iproute2 \
