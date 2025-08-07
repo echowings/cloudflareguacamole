@@ -11,8 +11,8 @@ ENV HOME=/root \
     DEBIAN_FRONTEND=noninteractive \
     CLOUDFLARETEAM=yourcloudflareteamname \
     TZ=Asia/Chongqing \
-    CATALINA_HOME=/usr/share/tomcat9 \
-    CATALINA_BASE=/var/lib/tomcat9
+    CATALINA_HOME=/usr/share/tomcat11 \
+    CATALINA_BASE=/var/lib/tomcat11
 
 # Create directories and copy files
 WORKDIR /root
@@ -29,13 +29,13 @@ RUN echo "deb http://deb.debian.org/debian bookworm main contrib" > /etc/apt/sou
         curl \
         ca-certificates \
         guacd \
-        tomcat9 \
+        tomcat11 \
         iproute2 \
         mariadb-server \
         libmariadb-java || { echo "apt-get install failed"; exit 1; }
 
 # Create directories and set permissions
-RUN mkdir -p /etc/guacamole/lib /var/run/mysqld /usr/share/tomcat9/logs /etc/guacamole/extensions && \
+RUN mkdir -p /etc/guacamole/lib /var/run/mysqld /usr/share/tomcat11/logs /etc/guacamole/extensions && \
     chown -R mysql:root /var/run/mysqld
 
 # Install Cloudflared
@@ -46,7 +46,7 @@ RUN CLOUDFLARED_VERSION=$(curl -s https://api.github.com/repos/cloudflare/cloudf
 
 # Install Guacamole
 RUN GUACAMOLE_VERSION=$(curl -s https://downloads.apache.org/guacamole/ | grep -oP '<a href="\d+\.\d+\.\d+/' | grep -oP '\d+\.\d+\.\d+' | sort -V | tail -n 1) && \
-    wget -q https://downloads.apache.org/guacamole/${GUACAMOLE_VERSION}/binary/guacamole-${GUACAMOLE_VERSION}.war -O /var/lib/tomcat9/webapps/guacamole.war && \
+    wget -q https://downloads.apache.org/guacamole/${GUACAMOLE_VERSION}/binary/guacamole-${GUACAMOLE_VERSION}.war -O /var/lib/tomcat11/webapps/guacamole.war && \
     wget -q https://downloads.apache.org/guacamole/${GUACAMOLE_VERSION}/binary/guacamole-auth-jdbc-${GUACAMOLE_VERSION}.tar.gz -O guacamole-auth-jdbc.tar.gz && \
     tar xvfz guacamole-auth-jdbc.tar.gz && \
     cp guacamole-auth-jdbc-${GUACAMOLE_VERSION}/mysql/guacamole-auth-jdbc-mysql-${GUACAMOLE_VERSION}.jar /etc/guacamole/extensions && \
